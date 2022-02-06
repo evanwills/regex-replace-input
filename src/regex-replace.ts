@@ -1,7 +1,7 @@
 /** Globals Error */
 import { html, css, LitElement, TemplateResult, } from 'lit';
 import {customElement, property, state} from 'lit/decorators.js';
-import { Iresults } from './vite-env';
+import { TResult, TRegexPair } from './vite-env';
 
 @customElement('regex-replace')
 export class RegexReplace extends LitElement {
@@ -126,14 +126,6 @@ export class RegexReplace extends LitElement {
   disabled : boolean = false;
 
   /**
-   * Whether or not testing UI should be available
-   *
-   * @param testable
-   */
-  @property({ type: Boolean })
-  testable : boolean = false;
-
-  /**
    * Allow invalid regexes to trigger change events.
    *
    * By default, invalid regex patterns will not trigger a change
@@ -146,18 +138,6 @@ export class RegexReplace extends LitElement {
    */
   @property({ type: Boolean })
   allowInvalid : boolean = false;
-
-  /**
-   * Hide replace input
-   *
-   * By default, this input has both a regex (and flags) input field
-   * and a replacement pattern field by setting hidereplace to TRUE,
-   * you make this behave like the basic regex-input field.
-   *
-   * @param allowInvalid
-   */
-  @property({ type: Boolean })
-  hideReplace : boolean = false;
 
   /**
    * Whether or not to render sample test UI
@@ -205,7 +185,7 @@ export class RegexReplace extends LitElement {
    * @var results
    */
   @state()
-  public results : Array<Iresults> = [];
+  public results : Array<TResult> = [];
 
   /**
    * Opening delimiter character
@@ -309,6 +289,15 @@ export class RegexReplace extends LitElement {
    */
    @state()
    private _showResults : boolean = false;
+
+
+   /**
+    * Whether or not to trim the sample(s) before processing
+    *
+    * @var _showWhiteSpace
+    */
+    @state()
+    private _showWhiteSpace : boolean = false;
 
 
 
@@ -836,7 +825,6 @@ export class RegexReplace extends LitElement {
     const regex = new RegExp(this.pattern, this.flags);
 
     this.results = []
-    let output = '';
 
     if (this.regexError === '') {
       const samples = (this.splitSample)
@@ -850,26 +838,48 @@ export class RegexReplace extends LitElement {
       };
       for (let a = 0; a < samples.length; a += 1) {
         const matches  = samples[a].match(regex);
+        const tmp = samples[a].replace(regex, this.replace)
 
         this.results.push({
           sample: samples[a],
           matches: (matches !== null)
             ? matches
-            : []
+            : [],
+          output: (this._showWhiteSpace)
+            ? this._renderWhiteSpace(tmp)
+            : tmp
         });
-      }
-      if (!this.hideReplace) {
-        let sep = '';
-        for (let a = 0; a < samples.length; a += 1) {
-          console.log
-          output += sep + samples[a].replace(regex, this.replace);
-          sep = '\n';
-        }
-        this.testSample = output;
       }
     }
     // console.log('this.results:', this.results)
     // console.groupEnd();
+  }
+
+  _renderWhiteSpace (input : string) : string {
+    const pairs : Array<TRegexPair> = [
+      {
+        find: /\t/g,
+        replace: '[TAB]'
+      },
+      {
+        find: / /g,
+        replace: '[SPACE]'
+      },
+      {
+        find: /\n/g,
+        replace: '[NEW LINE]'
+      },
+      {
+        find: /\r/g,
+        replace: '[RETURN]'
+      }
+    ];
+    let output : string = input;
+    for (let a = 0; a < pairs.length; a += 1) {
+      output = output.replace(pairs[a].find, pairs[a].replace);
+    }
+
+    return output;
   }
 
   //  END:  Private helper methods
@@ -952,6 +962,54 @@ export class RegexReplace extends LitElement {
   }
 
   /**
+   * Do all the work of testing the sample input against the regex
+   *
+   * @param event
+   */
+  replaceChange (event: Event) : void {
+    const raw = this._getValue(event);
+    const tmp = raw.substring(0, this.maxlength);
+
+    if (tmp !== this.replace) {
+      this.replace = tmp;
+
+      // Let the outside world know there's something new to work with.
+      this.dispatchEvent(
+        new Event('change', { bubbles: true, composed: true })
+      );
+    }
+  }
+
+  /**
+   * Event handler function for flag field Key Up events
+   * (used for adjusting the width)
+   *
+   * @param event
+   */
+  replaceKeyup (event: Event) : void {
+    event.preventDefault()
+    const input = event.target as HTMLInputElement;
+    const raw = input.value;
+    const tmp = raw.substring(0, this.maxlength);
+
+    const size = this._getSize(tmp, false);
+    let doUpdate = false;
+
+    if (size !== this._replaceSize) {
+      this._replaceSize = size;
+      doUpdate = true;
+    }
+    if (raw !== tmp) {
+      input.value = tmp;
+      doUpdate = true;
+    }
+
+    if (doUpdate) {
+      this.requestUpdate();
+    }
+  }
+
+  /**
    * Event handler function for flag field Key Up events
    * (used for adjusting the width)
    *
@@ -1021,9 +1079,7 @@ export class RegexReplace extends LitElement {
   toggleTestUI (event: Event) : void {
     event.preventDefault()
 
-    this._showTestUI = (this.testable)
-      ? !this._showTestUI
-      : false;
+    this._showTestUI = !this._showTestUI;
   }
 
   /**
@@ -1046,6 +1102,17 @@ export class RegexReplace extends LitElement {
   toggleTrim (event: Event) : void {
     event.preventDefault()
     this.trimSample = this._getIsChecked(event)
+  }
+
+  /**
+   * Event handler for toggling whether or not to show white space
+   * characters in replacement output.
+   *
+   * @param event
+   */
+  toggleShowWhitespace (event: Event) : void {
+    event.preventDefault()
+    this._showWhiteSpace = this._getIsChecked(event)
   }
 
   /**
@@ -1083,54 +1150,6 @@ export class RegexReplace extends LitElement {
     }
   }
 
-  /**
-   * Do all the work of testing the sample input against the regex
-   *
-   * @param event
-   */
-  replaceChange (event: Event) : void {
-    const raw = this._getValue(event);
-    const tmp = raw.substring(0, this.maxlength);
-
-    if (tmp !== this.replace) {
-      this.replace = tmp;
-
-      // Let the outside world know there's something new to work with.
-      this.dispatchEvent(
-        new Event('change', { bubbles: true, composed: true })
-      );
-    }
-  }
-
-  /**
-   * Event handler function for flag field Key Up events
-   * (used for adjusting the width)
-   *
-   * @param event
-   */
-  replaceKeyup (event: Event) : void {
-    event.preventDefault()
-    const input = event.target as HTMLInputElement;
-    const raw = input.value;
-    const tmp = raw.substring(0, this.maxlength);
-
-    const size = this._getSize(tmp, false);
-    let doUpdate = false;
-
-    if (size !== this._replaceSize) {
-      this._replaceSize = size;
-      doUpdate = true;
-    }
-    if (raw !== tmp) {
-      input.value = tmp;
-      doUpdate = true;
-    }
-
-    if (doUpdate) {
-      this.requestUpdate();
-    }
-  }
-
   //  END:  Private helper methods
   // --------------------------------------------
   // START: Public methods
@@ -1143,7 +1162,7 @@ export class RegexReplace extends LitElement {
    *
    * @returns HTML for a single sample match
    */
-  renderSingleTestResult (input : Iresults) : TemplateResult {
+  renderSingleTestResult (input : TResult) : TemplateResult {
     // console.group('renderSingleTestResult()');
     // console.log('input:', input);
     // console.log('input.sample:', input.sample);
@@ -1153,9 +1172,10 @@ export class RegexReplace extends LitElement {
     return html`
     <div class="match-result">
       <p><strong>Sample:</strong> <code>${input.sample}</code></p>
+      <p><strong>Result:</strong> <code>${input.output}</code></p>
       ${(input.matches.length === 0)
         ? html`<p>Nothing was matched</p>`
-        : html`<ol class="result-matches">${input.matches.map(match => html`<li><code>${match}</code></li>`)}</ol>`}
+        : html`<ol class="result-matches">${input.matches.map(match => html`<li>"<code>${match}</code>"</li>`)}</ol>`}
     </div>
     `
   }
@@ -1233,6 +1253,12 @@ export class RegexReplace extends LitElement {
                    .checked=${this.trimSample}
                    @change=${this.toggleTrim} />
             Trim sample${(this.splitSample) ? 's' : ''}
+          </label>
+          <label class="ws-checkbox">
+            <input type="checkbox"
+                   .checked=${this._showWhiteSpace}
+                   @change=${this.toggleShowWhitespace} />
+            Show white space characters
           </label>
         </div>
         <div class="test-results" aria-live="polite">
@@ -1330,32 +1356,25 @@ export class RegexReplace extends LitElement {
         />
         ${close}
         ${flags}
-        ${(!this.hideReplace)
-          ? html`
-            <span class="bar"></span>
-            <label for="${this.labelID}_replace" class="${labelClass}">
-              Regular expression
-            </label>
-            <input type="text"
-                  id="${this.labelID}_replace"
-                  name="${this.labelID}_replace"
-                  class="regex-replace"
-                  .value="${this._escape(this.replace)}"
-                  placeholder="\\1\\2"
-                  minlength="${this.maxlength}"
-                  @change=${this.replaceChange}
-                  @keyup=${this.replaceKeyup}
-                  style="width: ${this._replaceSize}rem"
-                  ?disabled=${this.disabled}
-                  title="Regular expression replacement pattern"
-            />`
-          : ''
-        }`
+        <span class="bar"></span>
+        <label for="${this.labelID}_replace" class="${labelClass}">
+          Regular expression
+        </label>
+        <input type="text"
+              id="${this.labelID}_replace"
+              name="${this.labelID}_replace"
+              class="regex-replace"
+              .value="${this._escape(this.replace)}"
+              placeholder="\\1\\2"
+              minlength="${this.maxlength}"
+              @change=${this.replaceChange}
+              @keyup=${this.replaceKeyup}
+              style="width: ${this._replaceSize}rem"
+              ?disabled=${this.disabled}
+              title="Regular expression replacement pattern"
+        />`
       : html`${open}${this.pattern}${close}${flags}
-          ${(!this.hideReplace)
-            ? html`<span class="bar"></span>${this.replace}`
-            : ''
-      }`
+        <span class="bar"></span>${this.replace}`
   }
 
   /**
@@ -1395,8 +1414,7 @@ export class RegexReplace extends LitElement {
     // console.log('hasErrors === false:', hasErrors === false)
     // console.log('this.pattern:', this.pattern)
     // console.log('this.pattern !== "":', this.pattern !== '')
-    const showBtn = (this.testable === true &&
-                     hasErrors === false &&
+    const showBtn = (hasErrors === false &&
                      this.pattern !== '');
 
     const testBtn = (showBtn === true)
