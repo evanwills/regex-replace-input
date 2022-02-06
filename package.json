@@ -1,0 +1,24 @@
+{
+  "name": "regex-replace",
+  "version": "0.0.0",
+  "main": "dist/regex-replace.es.js",
+  "exports": {
+    ".": "./dist/regex-replace.es.js"
+  },
+  "types": "types/regex-replace.d.ts",
+  "files": [
+    "dist",
+    "types"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "lit": "^2.1.2"
+  },
+  "devDependencies": {
+    "vite": "^2.7.2",
+    "typescript": "^4.4.4"
+  }
+}

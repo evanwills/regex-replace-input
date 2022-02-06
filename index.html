@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<link rel="icon" type="image/svg+xml" href="/src/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Regex Replace input</title>
+		<script type="module" src="/src/regex-replace.ts"></script>
+		<style>
+			:root {
+				--btn-colour: #fff;
+				--btn-bg-colour: rgb(0, 85, 34);
+				--txt-colour: #fff;
+				--bg-colour: #2d2b2b;
+				--border-radius: 0.85rem;
+		--default-input-font: 'Courier New', Courier, monospace;
+			}
+			body {
+				background-color: var(--bg-colour);
+				color: var(--txt-colour);
+				font-family: Arial, Helvetica, sans-serif;
+			}
+			.field {
+				display: flex;
+				align-items: flex-start;
+				margin: 1rem 0;
+				padding: 1rem;
+				border-top: 0.1rem dotted #fff;
+			}
+			.field label {
+				padding-right: 1rem;
+				color: var(--txt-colour);
+			}
+		</style>
+	</head>
+	<body>
+		<h1>Regex Replace</h1>
+		<regex-replace testable>
+		<p>This is child content</p>
+		</regex-replace>
+	</body>
+</html>
